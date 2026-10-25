@@ -1,0 +1,4 @@
+# Dependensi untuk pengembangan dan pengujian.
+-r requirements.txt
+
+pytest>=8.0

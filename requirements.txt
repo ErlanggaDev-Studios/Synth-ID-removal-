@@ -1,0 +1,3 @@
+# Dependensi inti SynthID Cleaner.
+# Pillow menangani baca/tulis PNG, JPEG, WebP, BMP, TIFF, dan GIF.
+Pillow>=10.0,<13
