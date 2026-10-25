@@ -64,6 +64,62 @@ Saat dijalankan di terminal, muncul banner dan panel seperti ini:
 
 ---
 
+## Versi web (PWA)
+
+Tidak mau repot mengetik path di terminal? Ada versi aplikasi web yang bisa
+dipasang di HP maupun desktop:
+
+**<https://site-04397ea246ec454c95a610a81dcd4403.freebuff.page>**
+
+Semua pemrosesan terjadi di browser (Canvas API), **tanpa upload ke server**,
+dan tetap jalan setelah dipasang walau offline.
+
+![Tampilan PWA di ponsel](web/docs/pwa-mobile.png)
+
+Cara pasang:
+
+- **Android (Chrome/Edge)** - buka tautan di atas, ketuk menu ⋮ -> *Instal
+  aplikasi* / *Tambahkan ke layar utama*. Tombol **Pilih gambar** langsung
+  membuka galeri.
+- **iPhone (Safari)** - buka tautan, ketuk *Bagikan* -> *Tambahkan ke Layar
+  Utama*.
+- **Desktop (Chrome/Edge)** - ikon *Install* di kanan address bar.
+
+Yang bisa dilakukan di versi web:
+
+- Pilih banyak gambar sekaligus dari galeri, folder, atau drag & drop.
+- Antrean batch dengan status per file, bandingkan sebelum-sesudah (slider),
+  unduh satu per satu atau semuanya sebagai ZIP.
+- Pengaturan lanjutan: format keluaran (asli/PNG/JPEG/WebP), kualitas,
+  mikro-resize, kontras, akhiran nama file, dan mode *metadata saja*.
+- Pengaturan disimpan di perangkat; di layar sempit panel pengaturan dilipat
+  supaya antrean langsung terlihat.
+
+![Tampilan PWA di desktop](web/docs/pwa-desktop.png)
+
+Menjalankan versi web secara lokal:
+
+```bash
+cd web/public
+python3 -m http.server 8080     # buka http://localhost:8080
+```
+
+Berkas situs ada di `web/` (`public/` = aset statis, `worker.js` hanya
+melayani aset, `deploy.json` = manifest deploy ke Cloudflare Workers).
+Service worker menyimpan shell aplikasi agar bisa dibuka offline; setelah
+mengubah aset, naikkan `CACHE` di `web/public/sw.js` supaya versi baru terpakai.
+
+Batasan versi web dibanding CLI:
+
+- Keluaran hanya PNG, JPEG, dan WebP (browser tidak bisa encode BMP/TIFF/GIF).
+- Metadata (EXIF/XMP/ICC/`tEXt`) dibuang lewat encode ulang, bukan dengan
+  menulis ulang struktur file seperti versi Python.
+- PNG hasil encode ulang browser bisa **lebih besar** dari file aslinya,
+  karena encoder canvas tidak seagresif optimizer PNG.
+- Sama seperti CLI: ini bukan jaminan SynthID hilang 100%.
+
+---
+
 ## Persyaratan
 
 - Python **3.9+**
@@ -320,6 +376,11 @@ tests/
   test_files.py             # uji path/glob/folder
   test_cli.py               # uji CLI end-to-end
   test_ui.py                # uji banner/panel/progress
+web/
+  public/                   # PWA: index.html, styles.css, app.js, sw.js, ikon
+  worker.js                 # Worker tipis untuk hosting statis
+  deploy.json               # manifest deploy
+  docs/                     # tangkapan layar PWA
 requirements.txt
 requirements-dev.txt
 pyproject.toml
