@@ -32,6 +32,38 @@ bisa menerima file, folder, glob, drag & drop, sampai pipe dari `find`.
 
 ---
 
+## Tampilan
+
+Saat dijalankan di terminal, muncul banner dan panel seperti ini:
+
+```text
+  ███████╗██╗   ██╗███╗   ██╗████████╗██╗  ██╗    ██╗██████╗
+  ██╔════╝╚██╗ ██╔╝████╗  ██║╚══██╔══╝██║  ██║   ██║██╔══██╗
+  ███████╗ ╚████╔╝ ██╔██╗ ██║   ██║   ███████║   ██║██║  ██║
+  ╚════██║  ╚██╔╝  ██║╚██╗██║   ██║   ██╔══██║   ██║██║  ██║
+  ███████║   ██║   ██║ ╚████║   ██║   ██║  ██║██╗██║██████╔╝
+  ╚══════╝   ╚═╝   ╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝╚═════╝
+
+  ╭─ SYNTH-ID REMOVAL ──────────────────────────────────────────────╮
+  │ v1.1.0  AI watermark & metadata cleaner                         │
+  │                                                                 │
+  │ ▸  EXIF · XMP · ICC dibuang total                               │
+  │ ▸  mikro-resize 1px + geser kontras 0.99                        │
+  │ ▸  alpha aman · tulis atomik · batch tahan error                │
+  │                                                                 │
+  │ tarik file ke terminal, atau tempel path-nya                    │
+  ╰─────────────────────────────────────────────────────────────────╯
+  cwd /data/data/com.termux/files/home/Synth-ID-removal-
+```
+
+- Terminal sempit (< 66 kolom, umum di Termux portrait) otomatis memakai
+  versi ringkas: logo blok diganti wordmark di panel.
+- `--no-banner` menyembunyikan banner. `--quiet`, `--json`, atau output yang
+  di-pipe juga tidak menampilkan banner.
+- Progress batch tampil sebagai bar `████░░░░ 3/7 nama.png` di terminal.
+
+---
+
 ## Persyaratan
 
 - Python **3.9+**
@@ -199,6 +231,7 @@ python main.py foto.png --json
 | `--dry-run` | Tampilkan rencana, tidak menulis file. |
 | `--json` | Hasil dalam JSON. |
 | `--quiet` | Hanya ringkasan akhir. |
+| `--no-banner` | Jangan tampilkan banner pembuka. |
 | `--no-color` | Matikan warna ANSI. |
 | `-V, --version` | Versi alat. |
 
@@ -280,11 +313,13 @@ synthid_removal/
   cli.py                    # argparse, mode interaktif, tampilan
   files.py                  # ekspansi path, penentuan nama keluaran
   sanitizer.py              # pipeline gambar
+  ui.py                     # banner, panel, progress bar, warna
 tests/
   conftest.py               # fixture pembuat gambar uji
   test_sanitizer.py         # uji inti pipeline
   test_files.py             # uji path/glob/folder
   test_cli.py               # uji CLI end-to-end
+  test_ui.py                # uji banner/panel/progress
 requirements.txt
 requirements-dev.txt
 pyproject.toml

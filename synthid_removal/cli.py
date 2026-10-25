@@ -22,60 +22,21 @@ from .sanitizer import (
     resolve_save_format,
     sanitize_image,
 )
+from .ui import (
+    ProgressBar,
+    Style,
+    draw_panel,
+    pick_symbol,
+    print_added,
+    print_banner,
+    print_prompt_rule,
+    stream_supports_color,
+    terminal_width,
+)
 
 # --------------------------------------------------------------------------- #
 # Tampilan terminal
 # --------------------------------------------------------------------------- #
-
-
-class Style:
-    """Pewarnaan ANSI sederhana tanpa dependensi tambahan."""
-
-    def __init__(self, enabled: bool) -> None:
-        self.enabled = enabled
-
-    def _wrap(self, code: str, text: str) -> str:
-        if not self.enabled:
-            return text
-        return f"\x1b[{code}m{text}\x1b[0m"
-
-    def bold(self, text: str) -> str:
-        return self._wrap("1", text)
-
-    def dim(self, text: str) -> str:
-        return self._wrap("2", text)
-
-    def green(self, text: str) -> str:
-        return self._wrap("32", text)
-
-    def yellow(self, text: str) -> str:
-        return self._wrap("33", text)
-
-    def red(self, text: str) -> str:
-        return self._wrap("31", text)
-
-    def cyan(self, text: str) -> str:
-        return self._wrap("36", text)
-
-    def magenta(self, text: str) -> str:
-        return self._wrap("35", text)
-
-
-def _stream_supports_color(stream) -> bool:
-    if os.environ.get("NO_COLOR"):
-        return False
-    if os.environ.get("TERM", "") == "dumb":
-        return False
-    return bool(getattr(stream, "isatty", lambda: False)())
-
-
-def _symbol(nice: str, fallback: str) -> str:
-    encoding = getattr(sys.stdout, "encoding", None) or "ascii"
-    try:
-        nice.encode(encoding)
-    except (UnicodeEncodeError, LookupError):
-        return fallback
-    return nice
 
 
 def human_size(size: int) -> str:
@@ -212,6 +173,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Hanya tampilkan ringkasan akhir.",
     )
     parser.add_argument(
+        "--no-banner",
+        action="store_true",
+        help="Jangan tampilkan banner pembuka.",
+    )
+    parser.add_argument(
         "--no-color",
         action="store_true",
         help="Matikan warna ANSI.",
@@ -230,28 +196,21 @@ def build_parser() -> argparse.ArgumentParser:
 # --------------------------------------------------------------------------- #
 
 
-def _print_banner(style: Style) -> None:
-    print()
-    judul = style.bold(style.magenta("  SynthID Cleaner "))
-    print(judul + style.dim(f"v{__version__}"))
-    print(style.dim("  Bersihkan metadata + watermark tak terlihat dari gambar AI"))
-    print(style.dim("  " + "-" * 58))
-    print(style.dim("  Tarik file ke terminal, atau tempel path-nya."))
-    print(style.dim("  Boleh banyak file/folder sekaligus, dipisah spasi."))
-    print(style.dim("  Tekan Enter tanpa isi untuk keluar."))
-    print()
-
-
 def prompt_for_inputs(style: Style) -> List[str]:
-    """Baca path dari pengguna secara interaktif."""
+    """Baca path dari pengguna secara interaktif dengan tampilan panel."""
 
-    _print_banner(style)
     collected: List[str] = []
     while True:
-        label = "Path gambar" if not collected else "Tambah path lain"
-        hint = "Enter untuk mulai" if collected else "Enter untuk keluar"
+        label = "path gambar" if not collected else "tambah path"
+        note = (
+            "tarik file ke terminal atau tempel path-nya"
+            if not collected
+            else "Enter kosong = mulai proses"
+        )
+        print_prompt_rule(style, label, note)
+        penanda = pick_symbol("›", ">")
         try:
-            line = input(f"{style.cyan('>')} {label} ({style.dim(hint)}): ")
+            line = input("  " + style.cyan(penanda + " "))
         except (EOFError, KeyboardInterrupt):
             print()
             return collected
@@ -259,6 +218,7 @@ def prompt_for_inputs(style: Style) -> List[str]:
         if not line:
             return collected
         collected.extend(_split_line(line))
+        print_added(style, len(collected))
 
 
 def _split_line(line: str) -> List[str]:
@@ -498,15 +458,19 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     style = Style(
         enabled=not args.no_color
         and not args.json
-        and _stream_supports_color(sys.stdout)
+        and stream_supports_color(sys.stdout)
     )
     symbols = {
-        "ok": _symbol("✓", "OK"),
-        "warn": _symbol("!", "!"),
-        "error": _symbol("✗", "x"),
-        "arrow": _symbol("→", "->"),
-        "bullet": _symbol("·", "-"),
+        "ok": pick_symbol("✓", "OK"),
+        "warn": pick_symbol("!", "!"),
+        "error": pick_symbol("✗", "x"),
+        "arrow": pick_symbol("→", "->"),
+        "bullet": pick_symbol("·", "-"),
     }
+
+    tty_ui = bool(getattr(sys.stdout, "isatty", lambda: False)())
+    if tty_ui and not args.json and not args.quiet and not args.no_banner:
+        print_banner(style, __version__)
 
     tokens = list(args.inputs)
     if not tokens:
@@ -625,26 +589,20 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     skipped_payload: List[dict] = []
 
     total = len(jobs)
-    show_progress = not args.quiet and not args.json and sys.stdout.isatty()
+    show_progress = not args.quiet and not args.json and tty_ui
+    progress = ProgressBar(style, total) if show_progress else None
     for index, job in enumerate(jobs, start=1):
-        if show_progress:
-            print(
-                style.dim(f"[{index}/{total}] memproses {job.source.name}..."),
-                end="\r",
-                flush=True,
-            )
+        if progress is not None:
+            progress.update(index, job.source.name)
         try:
             result = sanitize_image(job.source, job.destination, options)
         except SanitizeError as exc:
             failures.append((job.source, str(exc)))
             if not args.json:
-                if show_progress:
-                    print(" " * 70, end="\r")
+                if progress is not None:
+                    progress.clear()
                 print(
-                    style.red(
-                        f"[{index}/{total}] {symbols['error']} "
-                        f"{job.source.name}: {exc}"
-                    ),
+                    style.red(f"{symbols['error']} {job.source.name}: {exc}"),
                     file=sys.stderr,
                 )
             continue
@@ -652,8 +610,8 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
         if args.json:
             payloads.append(_result_payload(result))
         elif not args.quiet:
-            if show_progress:
-                print(" " * 70, end="\r")
+            if progress is not None:
+                progress.clear()
             _print_result(style, index, total, result, symbols, verbose=True)
 
     for source, reason in failures:
@@ -688,14 +646,35 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
 
     total_before = sum(item.bytes_before for item in results)
     total_after = sum(item.bytes_after for item in results)
-    summary = (
+    ringkas = (
         f"{len(results)} berhasil {symbols['bullet']} "
         f"{len(skipped)} dilewati {symbols['bullet']} "
-        f"{len(failures)} gagal {symbols['bullet']} "
-        f"{human_size(total_before)} -> {human_size(total_after)} "
-        f"{symbols['bullet']} {elapsed:.2f}s"
+        f"{len(failures)} gagal"
+    )
+    ukuran = (
+        f"{human_size(total_before)} {symbols['arrow']} "
+        f"{human_size(total_after)} {symbols['bullet']} {elapsed:.2f}s"
     )
     print()
+
+    if tty_ui:
+        tanda = style.green(symbols["ok"]) if not failures else style.red(
+            symbols["error"]
+        )
+        for row in draw_panel(
+            style,
+            [f"{tanda} {style.bold(ringkas)}", style.dim(ukuran)],
+            title="selesai" if not failures else "selesai dengan kegagalan",
+            width=min(terminal_width() - 2, 68),
+            color="green" if not failures else "red",
+        ):
+            print("  " + row)
+        return 0 if not failures else 1
+
+    summary = (
+        f"{ringkas} {symbols['bullet']} {human_size(total_before)} -> "
+        f"{human_size(total_after)} {symbols['bullet']} {elapsed:.2f}s"
+    )
     if failures:
         judul = style.red(style.bold("Selesai dengan kegagalan"))
         print(judul + " " + style.dim(summary))
