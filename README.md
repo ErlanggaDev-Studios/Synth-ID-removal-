@@ -39,15 +39,39 @@ bisa menerima file, folder, glob, drag & drop, sampai pipe dari `find`.
 
 ## Instalasi
 
+### Cara tercepat
+
+```bash
+# Termux: pastikan Python & git ada dulu
+pkg update && pkg install python git
+
+git clone https://github.com/ErlanggaDev-Studios/Synth-ID-removal-.git
+cd Synth-ID-removal-
+bash install.sh
+```
+
+`install.sh` selalu pindah ke folder proyek sendiri, membuat `.venv` (di
+Linux/macOS), memasang Pillow, dan mendaftarkan perintah `synthid-clean`.
+
+> Langkah `cd Synth-ID-removal-` **wajib**. Kalau setelah `git clone` Anda
+> langsung menjalankan `python main.py`, Python akan mencari
+> `~/main.py` dan muncul error `can't open file .../main.py`.
+
 ### Termux (Android)
 
 ```bash
-pkg update && pkg install python
+pkg update && pkg install python git
+pkg install python-pillow        # biasanya lebih cepat & andal daripada pip
+
 git clone https://github.com/ErlanggaDev-Studios/Synth-ID-removal-.git
 cd Synth-ID-removal-
-pip install -r requirements.txt
+
 termux-setup-storage   # sekali saja, agar folder Download bisa dibaca
+python main.py          # jalan dari dalam folder proyek
 ```
+
+Kalau `python-pillow` tidak tersedia di repo Termux, gunakan
+`pip install -r requirements.txt` dari dalam folder proyek.
 
 ### Linux / macOS
 
@@ -248,6 +272,7 @@ Fungsi lain yang tersedia: `sanitize_many()`, `expand_inputs()`,
 ## Struktur proyek
 
 ```
+install.sh                  # pemasang otomatis (aman dari folder mana pun)
 main.py                     # entry point: python main.py
 synthid_removal/
   __init__.py               # API publik + versi
@@ -278,6 +303,18 @@ pytest
 
 ## Troubleshooting
 
+**`can't open file '.../main.py': [Errno 2] No such file or directory`**
+Terminal masih di folder lain (biasanya `home`). Masuk dulu ke folder proyek:
+
+```bash
+cd ~/Synth-ID-removal-
+python main.py
+```
+
+**`No such file or directory: 'requirements.txt'`**
+Sama penyebabnya: jalankan dari dalam folder proyek, atau pakai
+`bash install.sh` yang otomatis pindah folder.
+
 **`ModuleNotFoundError: No module named 'PIL'`**
 Jalankan `pip install -r requirements.txt` (atau aktifkan venv dulu).
 
@@ -286,7 +323,12 @@ Pakai virtualenv seperti pada bagian instalasi, atau
 `pip install --user -r requirements.txt`.
 
 **Termux tidak bisa membaca `/sdcard/Download`**
-Jalankan `termux-setup-storage`, lalu izinkan akses penyimpanan.
+Jalankan `termux-setup-storage`, lalu izinkan akses penyimpanan. Bisa juga
+memakai path `~/storage/downloads`.
+
+**Termux gagal saat memasang Pillow lewat pip**
+Pakai paket bawaan Termux: `pkg install python-pillow`. Kalau masih gagal:
+`pkg install libjpeg-turbo libpng` lalu ulangi `pip install -r requirements.txt`.
 
 **Nama file ada spasinya**
 Bungkus dengan kutip (`"foto ai.png"`) atau drag & drop langsung; keduanya
